@@ -58,6 +58,10 @@ class LinearBranchDataTreeOf {
 		this.dataPrototype := dataPrototype
 	}
 	
+	__Call(p*) {
+		this.tree._branchLookup(this.path*)
+	}
+	
 	
 	;rootBranch := Tree.getBranch()
 	;	gets the root branch
@@ -70,7 +74,8 @@ class LinearBranchDataTreeOf {
 		local
 		static init := 0
 		if (!init) {
-			ObjRawSet(ObjGetBase(this), "_branchLookup", ObjRawGet(ObjRawGet(this, "Branch"), "_branchLookup")) ;copy branchlookup into this class
+			baseObj := ObjGetBase(this)
+			ObjRawSet(baseObj, "_branchLookup", ObjRawGet(ObjRawGet(baseObj, "Branch"), "_branchLookup")) ;copy branchlookup into this class
 			init := 1
 		}
 		currentBranch := this._branchLookup(path)
@@ -104,7 +109,7 @@ class LinearBranchDataTreeOf {
 			local
 			if (!data := this.data) { ;if it isnt buffered
 				if (!data := this.tree.branchData[this.children]) ;if it isn't created
-					this.tree.branchData[this.children] := this.tree.prototypeData.clone() ;create
+					this.tree.branchData[this.children] := data := this.tree.dataPrototype.clone() ;create
 				this.data := data ;buffer
 			}
 			if !data
@@ -157,7 +162,7 @@ class LinearBranchDataTreeOf {
 			for each, childBranch in this._rawLoop(childrenData) {
 				newPath := cPath.clone()
 				newPath.push(each)
-				ObjRawSet(children, each, new branchClass(tree, newPath, childBranch) ;objRawSet to avoid issues with .base
+				ObjRawSet(children, each, new branchClass(tree, newPath, childBranch)) ;objRawSet to avoid issues with .base
 			}
 			return children
 		}
@@ -203,6 +208,15 @@ class LinearBranchDataTreeOf {
 			newPath.push(path*)
 			return new branchClass(this.tree, newPath, currentChilds)
 		}
+		
+		;Branch.removeBranch()
+		;	removes this branch and all childs - returns nothing
+		;	future accesses to any invalid branches will throw
+		;additionally:
+		;Branch.removeBranch(path*)
+		;	removes the branch with the path path and all of its children - returns nothing
+		;	future accesses to any invalid branches will throw
+		
 		
 		;ancestorBranches := Branch.getAncestors()
 		;	gets all the ancestors of this branch in an array and returns it
