@@ -94,18 +94,13 @@ class LinearBranchDataTreeOf {
 			this.children := children
 		}
 		
-		;check if this branch is still a valid branch
-		__Call(p*) {
-			local
-			this.tree._branchLookup(this.path*)
-		}
-		
 		;data := Branch.getData()
 		;	gets the data object this tree holds
 		;	if it isn't buffered yet look it up and buffer it
 		;	if it doesn't exist yet create it
 		getData() {
 			local
+			this._checkValid()
 			if (!data := this.data) { ;if it isnt buffered
 				if (!data := this.tree.branchData[this.children]) ;if it isn't created
 					this.tree.branchData[this.children] := data := this.tree.dataPrototype.clone() ;create
@@ -130,6 +125,7 @@ class LinearBranchDataTreeOf {
 		;	- child: a branch class representing that branch
 		getBranch(path*) {
 			local
+			this._checkValid()
 			;funny, getBranch() would return a new instance of this branch
 			childBranch := this._branchLookup(path)
 			newPath := this.path.clone()
@@ -152,6 +148,7 @@ class LinearBranchDataTreeOf {
 		;	- children an associative array 
 		getChildBranches(path*) {
 			local
+			this._checkValid()
 			childrenData := this._branchLookup(path)
 			children := childrenData.clone()
 			branchClass := ObjGetBase(this)
@@ -174,6 +171,7 @@ class LinearBranchDataTreeOf {
 		;	you know the drill by now
 		hasBranch(path*) {
 			local
+			this._checkValid()
 			currentlySearching := this.children
 			for each, childName in path
 				if (!currentlySearching := ObjRawGet(currentlySearching, childName))
@@ -191,6 +189,7 @@ class LinearBranchDataTreeOf {
 		;	throws an exception if all branches already exist
 		addBranch(path*) {
 			local
+			this._checkValid()
 			currentChilds := this.children
 			
 			for each, branchPath in path {
@@ -217,6 +216,7 @@ class LinearBranchDataTreeOf {
 		;	future accesses to any invalid branches will throw
 		removeBranch(path*) {
 			local
+			this._checkValid()
 			if (path.length()=0) { ;if this branch is the target we need to lookup the parent differently
 				limit = this.path.length() - 1
 				if (limit < 0) { ;reset the tree when removing the root
@@ -230,6 +230,7 @@ class LinearBranchDataTreeOf {
 					ObjDelete(currentBranch, this.path[limit+1])
 				}
 				currentContainer := this.children
+				this._isValid := this._isValidFalse
 			} else {
 				childName := path.pop() ;otherwise we can just not do this step of the lookup to get the parent
 				parentContainer := this._branchLookup(path) 
@@ -255,6 +256,7 @@ class LinearBranchDataTreeOf {
 		;	the root branch will return an empty array
 		getAncestors() {
 			local
+			this._checkValid()
 			ancestors := []
 			
 			branchClass := ObjGetBase(this)
@@ -276,6 +278,7 @@ class LinearBranchDataTreeOf {
 		;	branches withoutdescendants will return an empty array
 		getDescendants() {
 			local
+			this._checkValid()
 			descendants := []
 			
 			branchClass := ObjGetBase(this)
@@ -311,7 +314,51 @@ class LinearBranchDataTreeOf {
 			return currentlyFoundBranch
 		}
 		
-		;helps with creating enumerators eben when _newEnum is overwritten for the object
+		_checkValid() { ;do ot like this overhead
+			if (!this._isValid()) {
+				throw exception("ERR_BRANCH_INVALID", -2, "Valid check yielded 0 - attempting to access a branch that probably has been removed")
+			}
+		}
+		
+		_isValid() { ;initial method to setup valid checking
+			local
+			limit := this.path.length() - 1
+			if (limit < 0) {
+				this._isValid := this._isValidTrue
+			} else {
+				currentParent := this.tree.children
+				for each, childName in this.path {
+					currentParent := objRawGet(currentParent, childName)
+				} until each = limit
+				this.parent := currentParent
+			}
+			return this._isValid()
+		}
+		
+		_isValidRoot() {
+			local
+			if (this.tree.children != this.children) {
+				this._isValid := this._isValidFalse
+				return 0
+			}
+			return 1
+		}
+		
+		_isValidBranch() {
+			local
+			if (ObjRawGet(this.parent, this.path[path.length()]) != this.children) {
+				this._isValid := this._isValidFalse
+				return 0
+			}
+			return 1
+		}
+		
+		_isValidFalse() {
+			local
+			return 0
+		}
+		
+		;helps with creating enumerators even when _newEnum is overwritten for the object
 		_rawLoop(child) { ;does not work with multiple parralel enumerations
 			local
 			static enumBase := {_NewEnum:""}
