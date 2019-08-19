@@ -41,8 +41,6 @@
 class LinearBranchDataTreeOf {
 	
 	branchData := {} ;a associative array containing the data elements at each branch (branch as key, data as value)
-	dataBranch := {} ;the inverse of the above - for a possible tree.getBranchFromData(data)
-	
 	children := {} ;the root elements and its children
 	
 	;tree := new LinearBranchDataTreeOf(dataPrototype)
@@ -57,11 +55,6 @@ class LinearBranchDataTreeOf {
 		}
 		this.dataPrototype := dataPrototype
 	}
-	
-	__Call(p*) {
-		this.tree._branchLookup(this.path*)
-	}
-	
 	
 	;rootBranch := Tree.getBranch()
 	;	gets the root branch
@@ -99,6 +92,12 @@ class LinearBranchDataTreeOf {
 			this.tree := tree
 			this.path := path
 			this.children := children
+		}
+		
+		;check if this branch is still a valid branch
+		__Call(p*) {
+			local
+			this.tree._branchLookup(this.path*)
 		}
 		
 		;data := Branch.getData()
@@ -216,7 +215,40 @@ class LinearBranchDataTreeOf {
 		;Branch.removeBranch(path*)
 		;	removes the branch with the path path and all of its children - returns nothing
 		;	future accesses to any invalid branches will throw
-		
+		removeBranch(path*) {
+			local
+			if (path.length()=0) { ;if this branch is the target we need to lookup the parent differently
+				limit = this.path.length() - 1
+				if (limit < 0) { ;reset the tree when removing the root
+					this.tree.branchData := {}
+					this.tree.children := {}
+				} else { ;lookup parent if the current branch gets deleted
+					currentBranch := this.tree.children
+					for each, branchName in this.path {
+						currentBranch := ObjRawGet(currentBranch, branchName)
+					} until each = limit
+					ObjDelete(currentBranch, this.path[limit+1])
+				}
+				currentContainer := this.children
+			} else {
+				childName := path.pop() ;otherwise we can just not do this step of the lookup to get the parent
+				parentContainer := this._branchLookup(path) 
+				currentContainer := ObjRawGet(parentContainer, childName)
+				ObjDelete(parentContainer, childPath)
+			}
+			
+			possibleContainers := [currentContainer] ;need to remove all children from all parents to free the keys
+			Loop {
+				namesToRemove := []
+				for childName, newChild in this._rawLoop(currentContainer) {
+					possibleContainers.push(newChild)
+					namesToRemove.push(childName)
+				}
+				for each, childName in namesToRemove {
+					ObjDelete(currentContainer, childName)
+				}
+			} until !(currentContainer := possibleContainers.pop())
+		}
 		
 		;ancestorBranches := Branch.getAncestors()
 		;	gets all the ancestors of this branch in an array and returns it
