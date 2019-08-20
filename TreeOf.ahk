@@ -217,10 +217,10 @@ class LinearBranchDataTreeOf {
 		removeBranch(path*) {
 			local
 			this._checkValid()
+			branchData := this.tree.branchData
 			if (path.length()=0) { ;if this branch is the target we need to lookup the parent differently
 				limit = this.path.length() - 1
 				if (limit < 0) { ;reset the tree when removing the root
-					this.tree.branchData := {}
 					this.tree.children := {}
 				} else { ;lookup parent if the current branch gets deleted
 					currentBranch := this.tree.children
@@ -235,11 +235,12 @@ class LinearBranchDataTreeOf {
 				childName := path.pop() ;otherwise we can just not do this step of the lookup to get the parent
 				parentContainer := this._branchLookup(path) 
 				currentContainer := ObjRawGet(parentContainer, childName)
-				ObjDelete(parentContainer, childPath)
+				ObjDelete(parentContainer, childName)
 			}
 			
-			possibleContainers := [currentContainer] ;need to remove all children from all parents to free the keys
+			possibleContainers := [] ;need to remove all children from all parents to free the keys
 			Loop {
+				ObjDelete(branchData, currentContainer)
 				namesToRemove := []
 				for childName, newChild in this._rawLoop(currentContainer) {
 					possibleContainers.push(newChild)
@@ -324,13 +325,14 @@ class LinearBranchDataTreeOf {
 			local
 			limit := this.path.length() - 1
 			if (limit < 0) {
-				this._isValid := this._isValidTrue
+				this._isValid := this._isValidRoot
 			} else {
 				currentParent := this.tree.children
 				for each, childName in this.path {
 					currentParent := objRawGet(currentParent, childName)
 				} until each = limit
 				this.parent := currentParent
+				this._isValid := this._isValidBranch
 			}
 			return this._isValid()
 		}
@@ -346,7 +348,8 @@ class LinearBranchDataTreeOf {
 		
 		_isValidBranch() {
 			local
-			if (ObjRawGet(this.parent, this.path[path.length()]) != this.children) {
+			path := this.path
+			if (ObjRawGet(this.parent, path[path.length()]) != this.children) {
 				this._isValid := this._isValidFalse
 				return 0
 			}
